@@ -12,6 +12,7 @@ langchain-community>=0.2.10
 langchain-mistralai>=0.1.12
 mistralai>=0.4.2
 chromadb>=0.5.5
+langchain-chroma>=0.1.0
 sentence-transformers>=3.0.1
 langchain-huggingface>=0.0.3
 huggingface-hub>=0.24.5
