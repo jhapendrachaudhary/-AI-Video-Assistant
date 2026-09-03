@@ -1,18 +1,36 @@
 import os
 import tempfile
 import streamlit as st
-from dotenv import load_dotenv
+
+# ============================================================
+#  SECURE SECRETS LOADING (Cloud‑First)
+#  This must run BEFORE any module that reads os.getenv().
+# ============================================================
+try:
+    os.environ["MISTRAL_API_KEY"] = st.secrets["MISTRAL_API_KEY"]
+    os.environ["WHISPER_MODEL"]   = st.secrets["WHISPER_MODEL"]
+    os.environ["SARVAM_API_KEY"]  = st.secrets["SARVAM_API_KEY"]
+    os.environ["SARVAM_STT_MODE"] = st.secrets["SARVAM_STT_MODE"]
+except KeyError as e:
+    st.error(f"❌ Missing secret: {e}. Please set it in Streamlit Cloud secrets.")
+    st.stop()
+# ============================================================
+
+# Now import the rest – they will find the env vars via os.getenv()
 from utils.audio_processor import process_input
 from core.transcriber import transcribe_all
 from core.summarizer import summarize, generate_title
 from core.extractor import extract_action_items, extract_key_decisions, extract_questions
 from core.rag_engine import build_rag_chain, ask_question
 
-load_dotenv()
-
+# ----------------------------------------------------------------------
+#  Page configuration
+# ----------------------------------------------------------------------
 st.set_page_config(page_title="AI Video Assistant", page_icon="🎬", layout="wide")
 
-# Session state
+# ----------------------------------------------------------------------
+#  Session state initialisation
+# ----------------------------------------------------------------------
 if "results" not in st.session_state:
     st.session_state.results = None
 if "messages" not in st.session_state:
@@ -31,7 +49,9 @@ def cleanup_temp_file():
     st.session_state.temp_file = None
     st.session_state.uploaded_name = None
 
-# Sidebar
+# ----------------------------------------------------------------------
+#  Sidebar
+# ----------------------------------------------------------------------
 with st.sidebar:
     st.title("🎬 AI Video Assistant")
     st.caption("Transcribe → Summarize → Extract → Chat")
@@ -84,14 +104,16 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    st.caption("Make sure your `.env` (API keys) is configured.")
+    st.caption("✅ Secrets are loaded securely from Streamlit Cloud (no .env needed).")
 
-# Pipeline runner
+# ----------------------------------------------------------------------
+#  Pipeline runner
+# ----------------------------------------------------------------------
 def run_pipeline(source: str, input_lang: str, output_lang: str) -> dict:
     with st.status("Running AI pipeline…", expanded=True) as status:
         st.write("✂️ Splitting media into chunks…")
         chunks = process_input(source)
-        st.write(f"🎙️ Transcribing ({input_lang})…")
+        st.write("🎙️ Transcribing ({input_lang})…")
         transcript = transcribe_all(chunks, input_lang)
         st.write("🏷️ Generating title…")
         title = generate_title(transcript, output_lang)
@@ -117,7 +139,9 @@ def run_pipeline(source: str, input_lang: str, output_lang: str) -> dict:
         "rag_chain": rag_chain,
     }
 
-# Main area
+# ----------------------------------------------------------------------
+#  Main area
+# ----------------------------------------------------------------------
 st.title("🎬 AI Video Assistant")
 st.caption("Turn any video or meeting recording into a summary, insights, and a searchable chat.")
 
@@ -135,7 +159,9 @@ if results is None:
     st.info("👈 Choose a source in the sidebar and click **Run pipeline** to get started.")
     st.stop()
 
-# Display results
+# ----------------------------------------------------------------------
+#  Display results
+# ----------------------------------------------------------------------
 st.header(results["title"])
 m1, m2, m3 = st.columns(3)
 m1.metric("Words in transcript", f"{len(results['transcript'].split()):,}")
@@ -162,7 +188,9 @@ with tabs[3]:
 with tabs[4]:
     st.text(results["transcript"])
 
-# Chat
+# ----------------------------------------------------------------------
+#  Chat interface
+# ----------------------------------------------------------------------
 st.divider()
 st.subheader("💬 Chat with your meeting")
 pending = st.session_state.pop("pending_question", None)
